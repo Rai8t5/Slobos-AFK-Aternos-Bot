@@ -224,7 +224,11 @@ app.get('/', (req, res) => {
               icon.textContent  = online ? '✓' : '✗';
               label.className   = 'status-label '   + (online ? 'online' : 'offline');
               label.textContent = online ? 'Connected' : 'Disconnected';
-              detail.textContent = online ? 'Bot is active on the server' : 'Attempting to reconnect';
+              detail.textContent = online
+                ? 'Bot is active on the server'
+                : data.reconnectPaused
+                  ? 'Reconnect paused: stop the other session using this username, then click Start'
+                  : 'Attempting to reconnect';
 
               document.getElementById('uptime-text').textContent = formatUptime(data.uptime);
 
@@ -470,6 +474,7 @@ app.get("/health", (req, res) => {
     coords: bot && bot.entity ? bot.entity.position : null,
     lastActivity: botState.lastActivity,
     reconnectAttempts: botState.reconnectAttempts,
+    reconnectPaused: duplicateLoginKick,
     memoryUsage: process.memoryUsage().heapUsed / 1024 / 1024,
   });
 });
@@ -974,10 +979,12 @@ app.get("/logs", (req, res) => {
 });
 
 let botRunning = true;
+let duplicateLoginKick = false;
 
 app.post("/start", (req, res) => {
   if (botRunning) return res.json({ success: false, msg: "Already running" });
 
+  duplicateLoginKick = false;
   botRunning = true;
   createBot();
   addLog("[Control] Bot started");
@@ -1313,6 +1320,18 @@ function createBot() {
 
       const reasonStr = String(kickReason).toLowerCase();
       if (
+        reasonStr.includes("duplicate_login") ||
+        reasonStr.includes("duplicate login") ||
+        reasonStr.includes("already logged in")
+      ) {
+        duplicateLoginKick = true;
+        botRunning = false;
+        addLog(
+          "[Bot] Reconnect paused: this username is already connected elsewhere. Stop the other session, then start the bot from the dashboard.",
+        );
+      }
+
+      if (
         reasonStr.includes("throttl") ||
         reasonStr.includes("wait before reconnect") ||
         reasonStr.includes("too fast")
@@ -1369,6 +1388,12 @@ function createBot() {
 
 function scheduleReconnect() {
   clearBotTimeouts();
+
+  if (duplicateLoginKick) {
+    isReconnecting = false;
+    addLog("[Bot] Automatic reconnect paused after a duplicate-login kick.");
+    return;
+  }
 
   // FIX: don't stack reconnect if already waiting
   if (isReconnecting) {
