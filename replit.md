@@ -13,7 +13,8 @@ This imported project is a Node.js Minecraft bot using Mineflayer, with an Expre
 ## Configuration
 - Edit `settings.json` to set the Minecraft server address, port, bot username, account type, and enabled modules.
 - The imported configuration uses an offline account and automatic Minecraft-version detection. No new external service is required for that configuration.
-- Idle mode disables movement, anti-AFK actions, combat, automatic authentication/chat, and chat replies. The server decides the bot's game mode; this app does not issue a game-mode command.
+- The bot is silent and idle: movement, anti-AFK actions, combat, automatic authentication/chat, replies, dashboard commands, and terminal chat commands are disabled. The server decides the bot's game mode; this app does not issue a game-mode command.
+- A Minecraft status ping checks the server player count every 10 seconds. The bot only connects when the server is empty; if another player joins while it is connected, it disconnects and waits until everyone else leaves before reconnecting.
 - A duplicate-login kick means another connection is using the same bot username. Stop that instance or use a distinct username before expecting a stable connection.
 - Render-specific self-pinging remains disabled because `RENDER_EXTERNAL_URL` is not configured; it is not needed to start this workflow.
 - Do not commit real passwords or webhook credentials. The imported application currently reads authentication settings from JSON; secret-backed configuration is a separate improvement.

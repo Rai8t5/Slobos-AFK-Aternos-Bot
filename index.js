@@ -2,6 +2,7 @@
 
 const { addLog, getLogs } = require("./logger");
 const mineflayer = require("mineflayer");
+const minecraftProtocol = require("minecraft-protocol");
 const { Movements, pathfinder, goals } = require("mineflayer-pathfinder");
 const { GoalBlock } = goals;
 const config = require("./settings.json");
@@ -134,6 +135,7 @@ app.get('/', (req, res) => {
             transition: background 0.2s, color 0.2s;
           }
           .btn-secondary:hover { background: #21262d; color: #c9d1d9; }
+          .console-wrap[hidden] { display: none; }
 
           footer { margin-top: 20px; text-align: center; }
           footer p { font-size: 12px; color: #484f58; margin: 0; }
@@ -225,10 +227,12 @@ app.get('/', (req, res) => {
               label.className   = 'status-label '   + (online ? 'online' : 'offline');
               label.textContent = online ? 'Connected' : 'Disconnected';
               detail.textContent = online
-                ? 'Bot is active on the server'
-                : data.reconnectPaused
-                  ? 'Reconnect paused: stop the other session using this username, then click Start'
-                  : 'Attempting to reconnect';
+                ? 'Bot is waiting quietly in the server'
+                : !data.botRunning
+                  ? 'Bot is stopped'
+                  : data.waitingForPlayers
+                    ? 'Waiting for ' + (data.serverPlayerCount ?? 'players') + ' to leave; bot joins when the server is empty'
+                    : 'Checking the server before connecting';
 
               document.getElementById('uptime-text').textContent = formatUptime(data.uptime);
 
@@ -471,10 +475,12 @@ app.get("/health", (req, res) => {
   res.json({
     status: botState.connected ? "connected" : "disconnected",
     uptime: Math.floor((Date.now() - botState.startTime) / 1000),
-    coords: bot && bot.entity ? bot.entity.position : null,
+    coords: bot && botState.connected && bot.entity ? bot.entity.position : null,
     lastActivity: botState.lastActivity,
     reconnectAttempts: botState.reconnectAttempts,
-    reconnectPaused: duplicateLoginKick,
+    waitingForPlayers,
+    serverPlayerCount,
+    botRunning,
     memoryUsage: process.memoryUsage().heapUsed / 1024 / 1024,
   });
 });
@@ -778,7 +784,8 @@ app.get("/logs", (req, res) => {
                   }).join("")
               }
             </div>
-            <div class="console-wrap">
+            <p class="stat-detail">In-game chat and commands are disabled.</p>
+            <div class="console-wrap" hidden>
               <div class="cmd-suggestions" id="cmd-suggestions"></div>
               <div class="console-row">
                 <span class="console-prompt">&gt;</span>
@@ -820,8 +827,6 @@ app.get("/logs", (req, res) => {
               { name: '/help',   desc: 'Show all available commands' },
               { name: '/pos',    desc: "Show bot's current coordinates" },
               { name: '/status', desc: 'Show connection status & uptime' },
-              { name: '/list',   desc: 'List players on the server' },
-              { name: '/say',    desc: 'Send a chat message in-game' },
             ];
 
             function scrollBottom() {
@@ -979,14 +984,19 @@ app.get("/logs", (req, res) => {
 });
 
 let botRunning = true;
-let duplicateLoginKick = false;
+let waitingForPlayers = false;
+let serverPlayerCount = null;
+let presenceCheckInProgress = false;
+let lastPresenceCheckFailed = false;
+let leaveRequestedForPlayers = false;
+let nextJoinAttemptAt = 0;
 
 app.post("/start", (req, res) => {
   if (botRunning) return res.json({ success: false, msg: "Already running" });
 
-  duplicateLoginKick = false;
   botRunning = true;
-  createBot();
+  waitingForPlayers = true;
+  checkServerPresence();
   addLog("[Control] Bot started");
 
   res.json({ success: true });
@@ -996,10 +1006,14 @@ app.post("/stop", (req, res) => {
   if (!botRunning) return res.json({ success: false, msg: "Already stopped" });
 
   botRunning = false;
+  waitingForPlayers = false;
+  isReconnecting = false;
+  clearBotTimeouts();
 
   if (bot) {
-    bot.end();
+    const currentBot = bot;
     bot = null;
+    currentBot.end();
   }
 
   clearAllIntervals();
@@ -1012,18 +1026,13 @@ app.post("/command", express.json(), (req, res) => {
   const cmd = (req.body.command || "").trim();
   if (!cmd) return res.json({ success: false, msg: "Empty command." });
 
-  addLog(`[Console] > ${cmd}`);
-
   if (cmd === "/help") {
     const lines = [
-      "Available commands:",
+      "Read-only dashboard commands:",
       "  /help          - Show this help message",
       "  /pos           - Show bot's current coordinates",
       "  /status        - Show bot connection status",
-      "  /list          - Ask server for player list",
-      "  /say <message> - Send a chat message in-game",
-      "  /<anything>    - Send any Minecraft command directly",
-      "  <text>         - Send plain chat (no slash needed)",
+      "In-game chat and Minecraft commands are disabled.",
     ];
     lines.forEach((l) => addLog(`[Console] ${l}`));
     return res.json({ success: true, msg: lines.join("\n") });
@@ -1041,27 +1050,15 @@ app.post("/command", express.json(), (req, res) => {
   if (cmd === "/status") {
     const status = botState.connected ? "Connected" : "Disconnected";
     const uptime = Math.floor((Date.now() - botState.startTime) / 1000);
-    const msg = `Status: ${status} | Uptime: ${uptime}s | Reconnects: ${botState.reconnectAttempts}`;
+    const msg = `Status: ${status} | Players: ${serverPlayerCount ?? "unknown"} | Uptime: ${uptime}s | Reconnects: ${botState.reconnectAttempts}`;
     addLog(`[Console] ${msg}`);
     return res.json({ success: true, msg });
   }
 
-  if (!bot || typeof bot.chat !== "function") {
-    const msg = bot
-      ? "Bot is still connecting — try again in a moment."
-      : "Bot is not running.";
-    addLog(`[Console] ${msg}`);
-    return res.json({ success: false, msg });
-  }
-
-  try {
-    bot.chat(cmd);
-    addLog(`[Console] Sent to server: ${cmd}`);
-    return res.json({ success: true, msg: `Sent: ${cmd}` });
-  } catch (err) {
-    addLog(`[Console] Error: ${err.message}`);
-    return res.json({ success: false, msg: err.message });
-  }
+  return res.json({
+    success: false,
+    msg: "In-game chat and Minecraft commands are disabled.",
+  });
 });
 
 // ============================================================
@@ -1191,6 +1188,94 @@ function getReconnectDelay() {
   return delay + jitter;
 }
 
+const SERVER_PRESENCE_POLL_MS = 10_000;
+
+async function checkServerPresence() {
+  if (!botRunning || presenceCheckInProgress) return;
+
+  presenceCheckInProgress = true;
+  try {
+    const status = await minecraftProtocol.ping({
+      host: config.server.ip,
+      port: config.server.port,
+      noPongTimeout: 5000,
+      closeTimeout: 8000,
+    });
+    const onlineCount = Number(
+      status.players?.online ?? status.playerCount,
+    );
+    if (!Number.isInteger(onlineCount) || onlineCount < 0) {
+      throw new Error("Server status did not include a valid player count");
+    }
+
+    serverPlayerCount = onlineCount;
+    if (lastPresenceCheckFailed) {
+      addLog("[Presence] Minecraft server status is available again.");
+    }
+    lastPresenceCheckFailed = false;
+
+    const otherPlayerCount = Math.max(
+      0,
+      onlineCount - (botState.connected ? 1 : 0),
+    );
+    if (otherPlayerCount > 0) {
+      if (!waitingForPlayers) {
+        addLog(
+          `[Presence] ${otherPlayerCount} other player(s) online. Waiting for the server to be empty.`,
+        );
+      }
+      waitingForPlayers = true;
+      if (reconnectTimeoutId) {
+        clearTimeout(reconnectTimeoutId);
+        reconnectTimeoutId = null;
+      }
+      isReconnecting = false;
+
+      if (bot && !leaveRequestedForPlayers) {
+        leaveRequestedForPlayers = true;
+        addLog("[Presence] Leaving while another player is online.");
+        bot.end();
+      }
+      return;
+    }
+
+    if (botState.connected) {
+      waitingForPlayers = false;
+      leaveRequestedForPlayers = false;
+      return;
+    }
+
+    if (bot) return;
+
+    if (Date.now() < nextJoinAttemptAt) {
+      waitingForPlayers = true;
+      return;
+    }
+
+    waitingForPlayers = false;
+    if (reconnectTimeoutId) {
+      clearTimeout(reconnectTimeoutId);
+      reconnectTimeoutId = null;
+    }
+    isReconnecting = false;
+    addLog("[Presence] Server is empty. Connecting the bot.");
+    createBot();
+  } catch (err) {
+    serverPlayerCount = null;
+    if (!lastPresenceCheckFailed) {
+      addLog(`[Presence] Waiting for server status: ${err.message}`);
+    }
+    lastPresenceCheckFailed = true;
+  } finally {
+    presenceCheckInProgress = false;
+  }
+}
+
+function startPresenceMonitor() {
+  checkServerPresence();
+  setInterval(checkServerPresence, SERVER_PRESENCE_POLL_MS);
+}
+
 function createBot() {
   if (isReconnecting) {
     addLog("[Bot] Already reconnecting, skipping...");
@@ -1260,6 +1345,9 @@ function createBot() {
       botState.lastActivity = Date.now();
       botState.reconnectAttempts = 0;
       isReconnecting = false;
+      waitingForPlayers = false;
+      leaveRequestedForPlayers = false;
+      nextJoinAttemptAt = 0;
 
       addLog(
         `[Bot] [+] Successfully spawned on server! (Version: ${bot.version})`,
@@ -1324,10 +1412,10 @@ function createBot() {
         reasonStr.includes("duplicate login") ||
         reasonStr.includes("already logged in")
       ) {
-        duplicateLoginKick = true;
-        botRunning = false;
+        waitingForPlayers = true;
+        nextJoinAttemptAt = Date.now() + 30_000;
         addLog(
-          "[Bot] Reconnect paused: this username is already connected elsewhere. Stop the other session, then start the bot from the dashboard.",
+          "[Bot] Duplicate login detected. Waiting for the server to be empty before trying again.",
         );
       }
 
@@ -1356,6 +1444,8 @@ function createBot() {
     bot.on("end", (reason) => {
       addLog(`[Bot] Disconnected: ${reason || "Unknown reason"}`);
       botState.connected = false;
+      bot = null;
+      leaveRequestedForPlayers = false;
       clearAllIntervals();
       spawnHandled = false; // reset for next connection
 
@@ -1370,7 +1460,6 @@ function createBot() {
         );
       }
 
-      // ALWAYS reconnect — bot must never leave the server
       scheduleReconnect();
     });
 
@@ -1389,9 +1478,8 @@ function createBot() {
 function scheduleReconnect() {
   clearBotTimeouts();
 
-  if (duplicateLoginKick) {
+  if (!botRunning || waitingForPlayers) {
     isReconnecting = false;
-    addLog("[Bot] Automatic reconnect paused after a duplicate-login kick.");
     return;
   }
 
@@ -1412,7 +1500,7 @@ function scheduleReconnect() {
   reconnectTimeoutId = setTimeout(() => {
     reconnectTimeoutId = null;
     isReconnecting = false;
-    createBot();
+    checkServerPresence();
   }, delay);
 }
 
@@ -1925,16 +2013,12 @@ rl.on("line", (line) => {
   }
 
   const trimmed = line.trim();
-  if (trimmed.startsWith("say ")) {
-    bot.chat(trimmed.slice(4));
-  } else if (trimmed.startsWith("cmd ")) {
-    bot.chat("/" + trimmed.slice(4));
-  } else if (trimmed === "status") {
+  if (trimmed === "status") {
     addLog(
       `Connected: ${botState.connected}, Uptime: ${formatUptime(Math.floor((Date.now() - botState.startTime) / 1000))}`,
     );
   } else {
-    bot.chat(trimmed);
+    addLog("[Console] Chat and server commands are disabled.");
   }
 });
 
@@ -2101,4 +2185,4 @@ addLog(
 );
 addLog("=".repeat(50));
 
-createBot();
+startPresenceMonitor();
