@@ -1,7 +1,7 @@
 {
-  "name": "AFK Bot",
+  "name": "Sinner",
   "bot-account": {
-    "username": "GOONER",
+    "username": "SINNER",
     "password": "",
     "type": "offline"
   },
@@ -14,7 +14,7 @@
   "position": {
     "enabled": false,
     "x": 0,
-    "y": 100,
+    "y": 351,
     "z": 0
   },
   "utils": {
@@ -27,13 +27,12 @@
       "sneak": true
     },
     "chat-messages": {
-      "enabled": false,
+      "enabled": true
+      ,
       "repeat": true,
-      "repeat-delay": 120,
+      "repeat-delay": 7200,
       "messages": [
-        "I'm a regular player",
-        "Subscribe to Slobos!",
-        "I like to play Minecraft!"
+        "Running"
       ]
     },
     "chat-log": true,

@@ -36,234 +36,350 @@ app.get('/', (req, res) => {
         <title>${config.name} Dashboard</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="stylesheet" media="print" onload="this.media='all'"
-              href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+        <meta name="theme-color" content="#f2f0e8">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
           *, *::before, *::after { box-sizing: border-box; }
 
+          :root {
+            color-scheme: light;
+            --paper: #f2f0e8;
+            --surface: #fbfaf5;
+            --surface-quiet: #e9e7de;
+            --ink: #222d2c;
+            --muted: #727a73;
+            --line: #d9d9cf;
+            --green: #426b51;
+            --green-pale: #e5eee5;
+            --amber: #a66c24;
+            --amber-pale: #f4ead8;
+            --red: #a84e43;
+            --red-pale: #f4e5e1;
+            --mono: 'DM Mono', 'Courier New', monospace;
+            --sans: 'Manrope', system-ui, sans-serif;
+          }
+
+          html { min-height: 100%; background: var(--paper); }
           body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: #0d1117;
-            color: #e6edf3;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             min-height: 100vh;
             margin: 0;
-            padding: 24px;
+            padding: 0;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: var(--sans);
+            -webkit-font-smoothing: antialiased;
           }
 
-          main { width: 100%; max-width: 400px; }
-
-          header { margin-bottom: 28px; }
-          header h1 {
-            font-size: 26px;
-            font-weight: 700;
-            color: #f0f6fc;
-            margin: 0;
-            line-height: 1.2;
-          }
-          header p {
-            font-size: 14px;
-            color: #8b949e;
-            margin: 6px 0 0;
-            line-height: 1.5;
-          }
-
-          .status-section {
-            border-radius: 12px;
-            padding: 20px 24px;
-            margin-bottom: 16px;
+          main { width: min(100% - 64px, 1080px); margin: 0 auto; padding: 0 0 54px; }
+          .topbar {
+            min-height: 78px;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 16px;
-            transition: background 0.3s, border-color 0.3s;
+            border-bottom: 1px solid var(--line);
           }
-          .status-section.online  { background: #0d2218; border: 2px solid #238636; }
-          .status-section.offline { background: #200d0d; border: 2px solid #da3633; }
-
-          .status-icon {
-            width: 44px; height: 44px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px; flex-shrink: 0;
-            transition: background 0.3s;
+          .brand { display: flex; align-items: center; gap: 12px; }
+          .brand-mark {
+            width: 32px; height: 32px; display: grid; grid-template-columns: 1fr 1fr;
+            gap: 3px; padding: 5px; border: 1px solid #b7c1b1; background: var(--green-pale);
+            transform: rotate(-4deg);
           }
-          .status-icon.online  { background: #238636; }
-          .status-icon.offline { background: #da3633; }
-
-          .status-label { font-size: 18px; font-weight: 700; line-height: 1.2; transition: color 0.3s; }
-          .status-label.online  { color: #3fb950; }
-          .status-label.offline { color: #f85149; }
-          .status-detail { font-size: 13px; color: #8b949e; margin-top: 3px; }
-
-          dl { margin: 0; }
-          .stat-card {
-            background: #161b22;
-            border: 1px solid #21262d;
-            border-radius: 10px;
-            padding: 16px 20px;
-            margin-bottom: 10px;
+          .brand-mark i { display: block; background: var(--green); }
+          .brand-mark i:nth-child(2) { opacity: .48; }
+          .brand-mark i:nth-child(3) { opacity: .68; }
+          .brand-mark i:nth-child(4) { background: #b48243; }
+          .brand-name { font-size: 11px; font-weight: 800; letter-spacing: .15em; }
+          .brand-caption { color: var(--muted); font: 10px var(--mono); letter-spacing: .08em; margin-top: 3px; }
+          .top-link {
+            color: var(--muted); font-size: 12px; font-weight: 700; text-decoration: none;
+            border-bottom: 1px solid transparent; padding: 8px 0; transition: color .18s, border-color .18s;
           }
-          dt { font-size: 12px; color: #8b949e; font-weight: 600; margin-bottom: 4px; }
-          dd { margin: 0; font-size: 17px; font-weight: 600; color: #e6edf3; line-height: 1.3; }
-          .stat-detail { margin: 4px 0 0; font-size: 11px; color: #6e7681; }
-
-          .controls { margin-top: 8px; }
-          .btn-grid { display: grid; gap: 10px; margin-bottom: 10px; }
-          .btn-grid-2 { grid-template-columns: 1fr 1fr; }
-
-          .btn-primary {
-            min-height: 52px; border-radius: 10px;
-            font-size: 15px; font-weight: 700;
-            cursor: pointer; letter-spacing: 0.3px;
-            transition: opacity 0.2s, filter 0.2s;
-            font-family: inherit;
+          .top-link:hover { color: var(--ink); border-color: var(--green); }
+          .intro {
+            display: flex; justify-content: space-between; align-items: end; gap: 24px;
+            padding: 48px 0 30px;
           }
-          .btn-primary:hover  { filter: brightness(1.1); }
-          .btn-primary:active { opacity: 0.85; }
-          .btn-start { border: 2px solid #238636; background: #0d2218; color: #3fb950; }
-          .btn-stop  { border: 2px solid #da3633; background: #200d0d; color: #f85149; }
-
-          .btn-secondary {
-            min-height: 44px; border-radius: 10px;
-            border: 1px solid #21262d; background: #161b22; color: #8b949e;
-            font-size: 13px; font-weight: 500;
-            text-decoration: none;
-            display: flex; align-items: center; justify-content: center;
-            font-family: inherit; cursor: pointer;
-            transition: background 0.2s, color 0.2s;
+          .eyebrow { margin: 0 0 12px; color: var(--green); font: 500 10px var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+          h1 { margin: 0; font-size: clamp(34px, 5vw, 54px); font-weight: 600; letter-spacing: -.065em; line-height: 1.03; }
+          .intro-copy { max-width: 520px; color: var(--muted); font-size: 14px; line-height: 1.7; margin: 12px 0 0; }
+          .refresh-note {
+            display: flex; align-items: center; gap: 9px; flex: 0 0 auto; padding: 9px 12px;
+            border: 1px solid var(--line); color: var(--muted); background: rgba(251,250,245,.55);
+            font: 10px var(--mono); letter-spacing: .04em;
           }
-          .btn-secondary:hover { background: #21262d; color: #c9d1d9; }
-          .console-wrap[hidden] { display: none; }
+          .refresh-mark { width: 6px; height: 6px; border-radius: 50%; background: #b48243; }
+          .dashboard { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(270px, .85fr); gap: 14px; }
+          .panel { border: 1px solid var(--line); background: var(--surface); }
+          .status-panel { min-height: 225px; padding: 25px 27px; display: flex; flex-direction: column; justify-content: space-between; }
+          .panel-topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+          .panel-kicker { color: var(--muted); font: 10px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+          .status-code { color: var(--muted); font: 10px var(--mono); }
+          .status-main { display: flex; align-items: flex-start; gap: 17px; padding: 19px 0 21px; }
+          .status-signal {
+            width: 16px; height: 16px; flex: 0 0 16px; margin-top: 7px; border: 4px solid var(--amber-pale);
+            border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 1px #d9c19a;
+          }
+          .status-panel.state-connected .status-signal { background: var(--green); border-color: var(--green-pale); box-shadow: 0 0 0 1px #9cb29e; }
+          .status-panel.state-waiting .status-signal,
+          .status-panel.state-checking .status-signal { background: var(--amber); border-color: var(--amber-pale); box-shadow: 0 0 0 1px #d9c19a; }
+          .status-panel.state-stopped .status-signal,
+          .status-panel.state-error .status-signal { background: var(--red); border-color: var(--red-pale); box-shadow: 0 0 0 1px #d4aaa2; }
+          .status-label { margin: 0; font-size: clamp(25px, 3vw, 34px); font-weight: 700; letter-spacing: -.045em; line-height: 1.15; }
+          .status-detail { max-width: 570px; margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+          .status-footer { display: flex; flex-wrap: wrap; gap: 22px; border-top: 1px solid var(--line); padding-top: 15px; }
+          .status-meta-label { display: block; margin-bottom: 5px; color: var(--muted); font: 9px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+          .status-meta-value { color: var(--ink); font-size: 12px; font-weight: 700; }
+          .policy-panel { min-height: 225px; padding: 25px 24px; background: #e8ebe1; border-color: #d3d8cb; display: flex; flex-direction: column; justify-content: space-between; }
+          .policy-panel .panel-kicker { color: #687566; }
+          .policy-symbol { width: 34px; height: 34px; margin: 24px 0 13px; border: 1px solid #bcc8b9; position: relative; }
+          .policy-symbol::before, .policy-symbol::after { content: ""; position: absolute; background: var(--green); }
+          .policy-symbol::before { width: 1px; height: 19px; left: 16px; top: 7px; }
+          .policy-symbol::after { height: 1px; width: 19px; top: 16px; left: 7px; }
+          .policy-title { margin: 0; font-size: 18px; letter-spacing: -.035em; line-height: 1.3; }
+          .policy-copy { color: #647064; margin: 7px 0 18px; font-size: 12px; line-height: 1.6; }
+          .policy-state { padding-top: 12px; border-top: 1px solid #cbd2c5; color: var(--green); font: 10px var(--mono); letter-spacing: .02em; }
+          .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 14px 0; }
+          .metric { min-height: 119px; padding: 17px 18px; }
+          .metric dt { margin: 0 0 17px; color: var(--muted); font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+          .metric dd { margin: 0; color: var(--ink); font-size: 17px; font-weight: 700; letter-spacing: -.025em; line-height: 1.4; overflow-wrap: anywhere; }
+          .metric dd.mono-value { font: 500 14px var(--mono); }
+          .metric .metric-unit { color: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: 0; }
+          .bottom-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, .7fr); gap: 14px; }
+          .controls-panel, .links-panel { padding: 20px 22px; }
+          .section-heading { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: -.01em; }
+          .section-note { margin: 5px 0 15px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+          .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+          button {
+            min-height: 46px; padding: 0 14px; border: 1px solid transparent; border-radius: 2px;
+            font: 700 12px var(--sans); cursor: pointer; transition: background .16s, color .16s, border-color .16s, transform .16s;
+          }
+          button:hover:not(:disabled) { transform: translateY(-1px); }
+          button:active:not(:disabled) { transform: translateY(0); }
+          button:disabled { cursor: wait; opacity: .65; }
+          .btn-start { color: #fffaf0; background: var(--green); border-color: var(--green); }
+          .btn-start:hover:not(:disabled) { background: #365a44; border-color: #365a44; }
+          .btn-stop { color: var(--red); background: transparent; border-color: #d8b9b1; }
+          .btn-stop:hover:not(:disabled) { background: var(--red-pale); border-color: var(--red); }
+          .action-message { min-height: 16px; margin: 10px 0 0; color: var(--muted); font-size: 11px; }
+          .action-message[data-tone="error"] { color: var(--red); }
+          .link-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+          .secondary-link {
+            min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            padding: 0 12px; border: 1px solid var(--line); color: var(--ink); text-decoration: none;
+            font-size: 11px; font-weight: 700; transition: border-color .16s, background .16s;
+          }
+          .secondary-link:hover { border-color: #aab5a8; background: #f3f3eb; }
+          .link-arrow { color: var(--green); font: 12px var(--mono); }
+          footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 18px; color: var(--muted); font: 9px var(--mono); letter-spacing: .03em; }
+          :focus-visible { outline: 3px solid #b48243; outline-offset: 3px; }
 
-          footer { margin-top: 20px; text-align: center; }
-          footer p { font-size: 12px; color: #484f58; margin: 0; }
+          @media (max-width: 760px) {
+            main { width: min(100% - 36px, 560px); }
+            .intro { align-items: flex-start; flex-direction: column; padding-top: 37px; gap: 18px; }
+            .dashboard, .bottom-grid { grid-template-columns: 1fr; }
+            .metrics { grid-template-columns: 1fr; gap: 9px; }
+            .metric { min-height: 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 17px; }
+            .metric dt { margin: 0; }
+            .metric dd { text-align: right; }
+            .status-panel, .policy-panel { min-height: 210px; }
+          }
+          @media (max-width: 420px) {
+            main { width: calc(100% - 28px); }
+            .topbar { min-height: 68px; }
+            .top-link { font-size: 11px; }
+            .status-panel, .policy-panel { padding: 20px 18px; }
+            .status-footer { gap: 18px; }
+            .controls-panel, .links-panel { padding: 18px; }
+            .button-row, .link-list { grid-template-columns: 1fr; }
+            footer { flex-direction: column; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+          }
         </style>
       </head>
       <body>
-        <main role="main" aria-label="AFK Bot Dashboard">
-
-          <header>
-            <h1>AFK Bot Dashboard</h1>
-            <p>Minecraft server bot &middot; Live status</p>
+        <main aria-label="AFK bot control panel">
+          <header class="topbar">
+            <div class="brand">
+              <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+              <div><div class="brand-name">AFK BOT</div><div class="brand-caption">CONTROL PANEL / 01</div></div>
+            </div>
+            <a href="/logs" class="top-link">Activity logs <span aria-hidden="true">↗</span></a>
           </header>
 
-          <section
-            id="status-section"
-            role="status"
-            aria-live="polite"
-            aria-label="Bot connection status"
-            class="status-section offline"
-          >
-            <div id="status-icon" aria-hidden="true" class="status-icon offline">&#x2717;</div>
+          <section class="intro" aria-labelledby="page-title">
             <div>
-              <div id="status-label" class="status-label offline">Connecting…</div>
-              <div id="status-detail" class="status-detail">Establishing connection</div>
+              <p class="eyebrow">MINECRAFT SERVER / PRESENCE</p>
+              <h1 id="page-title">Quietly on standby.</h1>
+              <p class="intro-copy">A simple read on your bot's connection and the one rule that governs when it joins.</p>
             </div>
+            <div class="refresh-note"><span class="refresh-mark" aria-hidden="true"></span>LIVE CHECK / EVERY 5 SEC</div>
           </section>
 
-          <section aria-label="Bot statistics">
-            <dl>
-              <div class="stat-card">
-                <dt>Uptime</dt>
-                <dd id="uptime-text">—</dd>
-                <p class="stat-detail">Time since last connection</p>
+          <section class="dashboard" aria-label="Live bot overview">
+            <section id="status-section" class="panel status-panel state-checking" aria-label="Bot connection status" aria-live="polite" aria-atomic="true">
+              <div class="panel-topline">
+                <span class="panel-kicker">Connection state</span>
+                <span class="status-code" id="status-code">CHECKING</span>
               </div>
-              <div class="stat-card">
-                <dt>Coordinates</dt>
-                <dd id="coords-text">Searching…</dd>
-                <p class="stat-detail">Bot's current in-game position</p>
+              <div class="status-main">
+                <span class="status-signal" aria-hidden="true"></span>
+                <div>
+                  <h2 id="status-label" class="status-label">Checking server</h2>
+                  <p id="status-detail" class="status-detail">Getting the latest connection state.</p>
+                </div>
               </div>
-              <div class="stat-card">
-                <dt>Server address</dt>
-                <dd>${config.server.ip}</dd>
-                <p class="stat-detail">Minecraft server hostname</p>
+              <div class="status-footer">
+                <div><span class="status-meta-label">Bot process</span><span class="status-meta-value" id="process-text">Checking</span></div>
+                <div><span class="status-meta-label">Presence mode</span><span class="status-meta-value">Quiet / no chat</span></div>
               </div>
-            </dl>
+            </section>
+
+            <aside class="panel policy-panel" aria-label="Player presence rule">
+              <div>
+                <div class="panel-topline">
+                  <span class="panel-kicker">Presence rule</span>
+                  <span class="status-code">01 / 01</span>
+                </div>
+                <div class="policy-symbol" aria-hidden="true"></div>
+                <h2 class="policy-title">Wait for an empty server.</h2>
+                <p class="policy-copy">The bot stays out while other players are online, then joins when the server is clear.</p>
+              </div>
+              <div id="presence-rule-state" class="policy-state" aria-live="polite">Checking player presence</div>
+            </aside>
           </section>
 
-          <section class="controls" aria-label="Bot controls">
-            <div class="btn-grid btn-grid-2">
-              <button class="btn-primary btn-start" onclick="startBot()" aria-label="Start bot">Start bot</button>
-              <button class="btn-primary btn-stop" onclick="stopBot()" aria-label="Stop bot">Stop bot</button>
-            </div>
-            <div class="btn-grid btn-grid-2">
-              <a href="/tutorial" class="btn-secondary" aria-label="View setup guide">Setup guide</a>
-              <a href="/logs" class="btn-secondary" aria-label="View bot logs">View logs</a>
-            </div>
+          <section class="metrics" aria-label="Server and bot details">
+            <dl class="panel metric"><dt>Uptime</dt><dd id="uptime-text">—</dd></dl>
+            <dl class="panel metric"><dt>Coordinates</dt><dd id="coords-text" class="mono-value">Searching…</dd></dl>
+            <dl class="panel metric"><dt>Other players online</dt><dd id="players-text">—</dd></dl>
+            <dl class="panel metric"><dt>Server address</dt><dd class="mono-value">${config.server.ip}</dd></dl>
           </section>
 
-          <footer>
-            <p>Status updates every 5 seconds</p>
-          </footer>
+          <section class="bottom-grid" aria-label="Bot actions and resources">
+            <div class="panel controls-panel">
+              <h2 class="section-heading">Bot controls</h2>
+              <p class="section-note">Start or stop the bot process. Your selection takes effect on the next status check.</p>
+              <div class="button-row">
+                <button id="start-button" class="btn-start" type="button" onclick="startBot()">Start bot</button>
+                <button id="stop-button" class="btn-stop" type="button" onclick="stopBot()">Stop bot</button>
+              </div>
+              <p id="action-message" class="action-message" role="status" aria-live="polite"></p>
+            </div>
+            <nav class="panel links-panel" aria-label="More resources">
+              <h2 class="section-heading">More resources</h2>
+              <p class="section-note">Setup details and recent bot activity.</p>
+              <div class="link-list">
+                <a href="/tutorial" class="secondary-link">Setup guide <span class="link-arrow" aria-hidden="true">↗</span></a>
+                <a href="/logs" class="secondary-link">View logs <span class="link-arrow" aria-hidden="true">↗</span></a>
+              </div>
+            </nav>
+          </section>
 
+          <footer><span>STATUS POLLS EVERY 5 SECONDS</span><span>AFK BOT / LOCAL CONTROL</span></footer>
         </main>
 
         <script>
           function formatUptime(s) {
-            const h = Math.floor(s / 3600);
-            const m = Math.floor((s % 3600) / 60);
-            const sec = s % 60;
-            if (h > 0) return h + 'h ' + m + 'm ' + sec + 's';
+            const seconds = Math.max(0, Math.floor(Number(s) || 0));
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const sec = seconds % 60;
+            if (h > 0) return h + 'h ' + m + 'm';
             if (m > 0) return m + 'm ' + sec + 's';
-            return sec + ' seconds';
+            return sec + ' sec';
           }
 
           async function update() {
             try {
               const r = await fetch('/health');
+              if (!r.ok) throw new Error('Health check failed');
               const data = await r.json();
-              const online = data.status === 'connected';
-
+              const connected = data.status === 'connected';
+              const waiting = Boolean(data.waitingForPlayers);
+              const running = Boolean(data.botRunning);
+              const state = !running ? 'stopped' : connected ? 'connected' : waiting ? 'waiting' : 'checking';
+              const copy = {
+                connected: ['Connected', 'The bot is in the world and staying quietly online.', 'CONNECTED'],
+                waiting: ['Waiting for players', 'The bot joins once everyone has left the server.', 'WAITING'],
+                stopped: ['Stopped', 'The bot process is off. Start it whenever you need a presence.', 'STOPPED'],
+                checking: ['Checking server', 'The bot is running and checking whether it can join.', 'CHECKING']
+              }[state];
               const section = document.getElementById('status-section');
-              const icon    = document.getElementById('status-icon');
-              const label   = document.getElementById('status-label');
-              const detail  = document.getElementById('status-detail');
-
-              section.className = 'status-section ' + (online ? 'online' : 'offline');
-              icon.className    = 'status-icon '    + (online ? 'online' : 'offline');
-              icon.textContent  = online ? '✓' : '✗';
-              label.className   = 'status-label '   + (online ? 'online' : 'offline');
-              label.textContent = online ? 'Connected' : 'Disconnected';
-              detail.textContent = online
-                ? 'Bot is waiting quietly in the server'
-                : !data.botRunning
-                  ? 'Bot is stopped'
-                  : data.waitingForPlayers
-                    ? 'Waiting for ' + (data.serverPlayerCount ?? 'players') + ' to leave; bot joins when the server is empty'
-                    : 'Checking the server before connecting';
-
+              section.className = 'panel status-panel state-' + state;
+              document.getElementById('status-label').textContent = copy[0];
+              document.getElementById('status-detail').textContent = state === 'waiting' && data.serverPlayerCount !== null && data.serverPlayerCount !== undefined && Number.isFinite(Number(data.serverPlayerCount))
+                ? 'The bot joins when the server is empty. ' + data.serverPlayerCount + ' ' + (Number(data.serverPlayerCount) === 1 ? 'player is' : 'players are') + ' online.'
+                : copy[1];
+              document.getElementById('status-code').textContent = copy[2];
+              document.getElementById('process-text').textContent = running ? 'Running' : 'Stopped';
+              document.getElementById('presence-rule-state').textContent = state === 'waiting'
+                ? 'Holding until server is empty'
+                : state === 'connected'
+                  ? 'In world · presence active'
+                  : state === 'stopped'
+                    ? 'Bot is currently stopped'
+                    : 'Checking player presence';
               document.getElementById('uptime-text').textContent = formatUptime(data.uptime);
-
               if (data.coords) {
                 const x = Math.floor(data.coords.x);
                 const y = Math.floor(data.coords.y);
                 const z = Math.floor(data.coords.z);
-                document.getElementById('coords-text').textContent = 'X ' + x + ', Y ' + y + ', Z ' + z;
+                document.getElementById('coords-text').textContent = x + ', ' + y + ', ' + z;
               } else {
                 document.getElementById('coords-text').textContent = 'Searching…';
               }
+              const playerCount = data.serverPlayerCount;
+              const countIsKnown = playerCount !== null && playerCount !== undefined && Number.isFinite(Number(playerCount));
+              if (!countIsKnown) {
+                document.getElementById('players-text').textContent = 'Unknown';
+              } else {
+                const otherPlayerCount = Math.max(0, Number(playerCount) - (connected ? 1 : 0));
+                document.getElementById('players-text').textContent = otherPlayerCount + (otherPlayerCount === 1 ? ' player' : ' players');
+              }
             } catch (e) {
-              const label = document.getElementById('status-label');
-              label.className = 'status-label offline';
-              label.textContent = 'Unreachable';
+              const section = document.getElementById('status-section');
+              section.className = 'panel status-panel state-error';
+              document.getElementById('status-label').textContent = 'Status unavailable';
+              document.getElementById('status-detail').textContent = 'Could not reach the health check. Retrying automatically.';
+              document.getElementById('status-code').textContent = 'NO RESPONSE';
+              document.getElementById('process-text').textContent = 'Unknown';
+              document.getElementById('presence-rule-state').textContent = 'Player presence unavailable';
             }
           }
 
-          async function startBot() {
-            const r = await fetch('/start', { method: 'POST' });
-            const data = await r.json();
-            alert(data.success ? 'Bot started!' : data.msg);
-            update();
+          async function controlBot(action) {
+            const startButton = document.getElementById('start-button');
+            const stopButton = document.getElementById('stop-button');
+            const message = document.getElementById('action-message');
+            const button = action === 'start' ? startButton : stopButton;
+            const originalLabel = button.textContent;
+            startButton.disabled = true;
+            stopButton.disabled = true;
+            button.textContent = action === 'start' ? 'Starting…' : 'Stopping…';
+            message.textContent = '';
+            message.removeAttribute('data-tone');
+            try {
+              const r = await fetch('/' + action, { method: 'POST' });
+              const data = await r.json();
+              if (!r.ok || !data.success) throw new Error(data.msg || 'The request could not be completed.');
+              message.textContent = action === 'start' ? 'Start requested. Checking the server…' : 'Stop requested. Checking bot state…';
+              await update();
+            } catch (e) {
+              message.textContent = e.message || 'Could not contact the bot service.';
+              message.setAttribute('data-tone', 'error');
+            } finally {
+              startButton.disabled = false;
+              stopButton.disabled = false;
+              button.textContent = originalLabel;
+            }
           }
 
-          async function stopBot() {
-            const r = await fetch('/stop', { method: 'POST' });
-            const data = await r.json();
-            alert(data.success ? 'Bot stopped!' : data.msg);
-            update();
-          }
+          async function startBot() { await controlBot('start'); }
+          async function stopBot() { await controlBot('stop'); }
 
           setInterval(update, 5000);
           update();
