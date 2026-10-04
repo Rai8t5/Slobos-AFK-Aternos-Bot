@@ -32,7 +32,7 @@
       "repeat": true,
       "repeat-delay": 7200,
       "messages": [
-        "Running"
+        "RUN"
       ]
     },
     "chat-log": true,
