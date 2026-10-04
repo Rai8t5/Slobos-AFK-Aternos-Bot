@@ -1,3 +1,7 @@
+"scripts": {
+  "start": "node --max-old-space-size=80 index.js"
+}
+
 {
   "name": "minecraft-afk-bot",
   "version": "2.2",
